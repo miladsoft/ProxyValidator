@@ -35,7 +35,7 @@ internal static class Program
         Directory.SetCurrentDirectory(dirName);
         return dirName.Split(new[]
                              {
-                                 "\\bin\\",
+                                 "/bin/",
                              },
                              StringSplitOptions.RemoveEmptyEntries)[0];
     }
