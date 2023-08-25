@@ -6,7 +6,7 @@ namespace ProxyValidator;
 internal static class Program
 {
     private static readonly TimeSpan TimeOut = TimeSpan.FromSeconds(20);
-    private const int NumbersToProcess = 100;
+    private const int NumbersToProcess = 500;
     private static readonly object LockObject = new();
     private static readonly DynamicWebProxyProvider DynamicProxyProvider = new();
 
@@ -132,7 +132,8 @@ internal static class Program
                 results.Add(proxyUrl);
             }
         }
-
-        return results.Take(NumbersToProcess);
+        
+        var rnd = new Random(DateTime.Now.Millisecond);
+        return results.OrderBy(x => rnd.Next()).Take(NumbersToProcess);
     }
 }
