@@ -1,0 +1,6 @@
+https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/socks4.txt
+https://raw.githubusercontent.com/zloi-user/hideip.me/main/socks4.txt
+https://raw.githubusercontent.com/ALIILAPRO/Proxy/main/socks4.txt
+https://raw.githubusercontent.com/ErcinDedeoglu/proxies/main/proxies/socks4.txt
+https://raw.githubusercontent.com/roosterkid/openproxylist/main/SOCKS4_RAW.txt
+https://raw.githubusercontent.com/proxifly/free-proxy-list/main/proxies/protocols/socks4/data.txt
