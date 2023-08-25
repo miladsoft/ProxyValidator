@@ -6,6 +6,7 @@ namespace ProxyValidator;
 internal static class Program
 {
     private static readonly TimeSpan TimeOut = TimeSpan.FromSeconds(20);
+    private const int NumbersToProcess = 100;
     private static readonly object LockObject = new();
     private static readonly DynamicWebProxyProvider DynamicProxyProvider = new();
 
@@ -92,7 +93,7 @@ internal static class Program
         }
     }
 
-    private static async Task<ISet<string>> GetProxyProviderUrlsAsync(string rootPath, string fileName, string protocol)
+    private static async Task<IEnumerable<string>> GetProxyProviderUrlsAsync(string rootPath, string fileName, string protocol)
     {
         var results = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         DynamicProxyProvider.DynamicProxy = null;
@@ -132,6 +133,6 @@ internal static class Program
             }
         }
 
-        return results;
+        return results.Take(NumbersToProcess);
     }
 }
