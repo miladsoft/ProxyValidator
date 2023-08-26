@@ -5,8 +5,24 @@ namespace ProxyValidator;
 
 internal static class Program
 {
-    private static readonly TimeSpan TimeOut = TimeSpan.FromSeconds(20);
+    private const string Socks5 = "socks5://";
+    private const string Socks4 = "socks4://";
+    private const string Https = "https://";
+    private const string Http = "http://";
+
     private const int NumbersToProcess = 500;
+    private const string Socks5ProxiesOutputFile = "socks5-proxies.txt";
+    private const string Socks4ProxiesOutputFile = "socks4-proxies.txt";
+    private const string HttpProxiesOutputFile = "http-proxies.txt";
+    private const string Socks5ProvidersInputFile = "socks5-providers.txt";
+    private const string Socks4ProvidersInputFile = "socks4-providers.txt";
+    private const string HttpProxyProvidersInputFile = "http-proxy-providers.txt";
+    private const string WorkingProxiesOutputFolderName = "WorkingProxies";
+    private const int MaxDegreeOfParallelism = 16;
+    private const string ProxyProvidersInputFolderName = "ProxyProviders";
+    private static readonly Uri IpifyOrgUrl = new("https://api.ipify.org/");
+    private static readonly TimeSpan TimeOut = TimeSpan.FromSeconds(20);
+
     private static readonly object LockObject = new();
     private static readonly DynamicWebProxyProvider DynamicProxyProvider = new();
 
@@ -43,25 +59,25 @@ internal static class Program
 
     private static async Task ValidateAllProxiesAsync(string rootPath)
     {
-        var socks5Proxies = await GetProxyProviderUrlsAsync(rootPath, "socks5-providers.txt", "socks5://");
-        await ValidateProxiesAsync(socks5Proxies, rootPath, "socks5-proxies.txt");
+        var socks5Proxies = await GetProxyProviderUrlsAsync(rootPath, Socks5ProvidersInputFile, Socks5);
+        await ValidateProxiesAsync(socks5Proxies, rootPath, Socks5ProxiesOutputFile);
 
-        var socks4Proxies = await GetProxyProviderUrlsAsync(rootPath, "socks4-providers.txt", "socks4://");
-        await ValidateProxiesAsync(socks4Proxies, rootPath, "socks4-proxies.txt");
+        var socks4Proxies = await GetProxyProviderUrlsAsync(rootPath, Socks4ProvidersInputFile, Socks4);
+        await ValidateProxiesAsync(socks4Proxies, rootPath, Socks4ProxiesOutputFile);
 
-        var httpProxies = await GetProxyProviderUrlsAsync(rootPath, "http-proxy-providers.txt", "http://");
-        await ValidateProxiesAsync(httpProxies, rootPath, "http-proxies.txt");
+        var httpProxies = await GetProxyProviderUrlsAsync(rootPath, HttpProxyProvidersInputFile, Http);
+        await ValidateProxiesAsync(httpProxies, rootPath, HttpProxiesOutputFile);
     }
 
     private static async Task ValidateProxiesAsync(IEnumerable<string> proxies, string rootPath, string fileName)
     {
-        var outputFilePath = Path.Combine(rootPath, "WorkingProxies", fileName);
+        var outputFilePath = Path.Combine(rootPath, WorkingProxiesOutputFolderName, fileName);
         if (File.Exists(outputFilePath))
         {
             File.Delete(outputFilePath);
         }
 
-        var options = new ParallelOptions { MaxDegreeOfParallelism = 16 };
+        var options = new ParallelOptions { MaxDegreeOfParallelism = MaxDegreeOfParallelism };
         await Parallel.ForEachAsync(proxies,
                                     options,
                                     async (proxyUrl, _) => await ValidateProxyAsync(proxyUrl, outputFilePath));
@@ -73,11 +89,10 @@ internal static class Program
         {
             Console.WriteLine($"Processing {proxyUrl}");
 
-            DynamicProxyProvider.DynamicProxy =
-                new WebProxy { Address = new Uri(proxyUrl) };
+            DynamicProxyProvider.DynamicProxy = new WebProxy { Address = new Uri(proxyUrl) };
             using var cts = new CancellationTokenSource(TimeOut);
-            var resultIp = await MyHttpClient.GetStringAsync("https://api.ipify.org/", cts.Token);
-            if (proxyUrl.Contains(resultIp))
+            var resultIp = await MyHttpClient.GetStringAsync(IpifyOrgUrl, cts.Token);
+            if (proxyUrl.Contains(resultIp, StringComparison.Ordinal))
             {
                 lock (LockObject)
                 {
@@ -93,12 +108,15 @@ internal static class Program
         }
     }
 
-    private static async Task<IEnumerable<string>> GetProxyProviderUrlsAsync(string rootPath, string fileName, string protocol)
+    private static async Task<IEnumerable<string>> GetProxyProviderUrlsAsync(
+        string rootPath,
+        string fileName,
+        string protocol)
     {
         var results = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         DynamicProxyProvider.DynamicProxy = null;
 
-        var proxies = await File.ReadAllLinesAsync(Path.Combine(rootPath, "ProxyProviders", fileName));
+        var proxies = await File.ReadAllLinesAsync(Path.Combine(rootPath, ProxyProvidersInputFolderName, fileName));
         foreach (var proxyProviderUrl in proxies)
         {
             if (string.IsNullOrWhiteSpace(proxyProviderUrl))
@@ -107,7 +125,7 @@ internal static class Program
             }
 
             Console.WriteLine($"Processing {proxyProviderUrl}");
-            var content = await MyHttpClient.GetStringAsync(proxyProviderUrl);
+            var content = await MyHttpClient.GetStringAsync(new Uri(proxyProviderUrl));
             var proxyItems = content.Split('\n', StringSplitOptions.RemoveEmptyEntries);
             foreach (var proxyItem in proxyItems)
             {
@@ -116,10 +134,10 @@ internal static class Program
                     continue;
                 }
 
-                var proxy = proxyItem.Replace("http://", "", StringComparison.OrdinalIgnoreCase)
-                                     .Replace("https://", "", StringComparison.OrdinalIgnoreCase)
-                                     .Replace("socks4://", "", StringComparison.OrdinalIgnoreCase)
-                                     .Replace("socks5://", "", StringComparison.OrdinalIgnoreCase);
+                var proxy = proxyItem.Replace(Http, "", StringComparison.OrdinalIgnoreCase)
+                                     .Replace(Https, "", StringComparison.OrdinalIgnoreCase)
+                                     .Replace(Socks4, "", StringComparison.OrdinalIgnoreCase)
+                                     .Replace(Socks5, "", StringComparison.OrdinalIgnoreCase);
                 var proxyParts = proxy.Split(':', StringSplitOptions.RemoveEmptyEntries);
                 if (proxyParts.Length < 2)
                 {
@@ -132,8 +150,7 @@ internal static class Program
                 results.Add(proxyUrl);
             }
         }
-        
-        var rnd = new Random(DateTime.Now.Millisecond);
-        return results.OrderBy(x => rnd.Next()).Take(NumbersToProcess);
+
+        return results.OrderBy(x => Random.Shared.Next()).Take(NumbersToProcess);
     }
 }
