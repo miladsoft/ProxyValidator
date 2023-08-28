@@ -52,7 +52,7 @@ internal static class Program
         Directory.SetCurrentDirectory(dirName);
         return dirName.Split(new[]
                              {
-                                 "/bin/",
+                                 $"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}",
                              },
                              StringSplitOptions.RemoveEmptyEntries)[0];
     }
