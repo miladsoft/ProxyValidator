@@ -21,7 +21,7 @@ internal static class Program
     private const int MaxDegreeOfParallelism = 16;
     private const string ProxyProvidersInputFolderName = "ProxyProviders";
     private static readonly Uri IpifyOrgUrl = new("https://api.ipify.org/");
-    private static readonly TimeSpan TimeOut = TimeSpan.FromSeconds(20);
+    private static readonly TimeSpan TimeOut = TimeSpan.FromSeconds(7);
 
     private static readonly object LockObject = new();
     private static readonly DynamicWebProxyProvider DynamicProxyProvider = new();
